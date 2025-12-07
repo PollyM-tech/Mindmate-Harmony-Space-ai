@@ -1,7 +1,16 @@
 #Import BYLLM
 import from byllm.lib { Model }
+import from dotenv { load_dotenv }
+import os;
+import requests;
+import from mtllm.llm { Model }
+#import from PyPDF2 { PdfReader }
+#import from io { BytesIO }
+import base64;
 
-glob llm = Model(verbose=True, model_name="gpt-4o-mini");
+glob llm: Model = Model(model_name = "gemini/gemini-2.5-flash",api_key = os.getenv("GEMINI_API_KEY"));
+
+#glob llm = Model(verbose=True, model_name="gpt-4o-mini");
 
 node User {
     has user_id: str;
