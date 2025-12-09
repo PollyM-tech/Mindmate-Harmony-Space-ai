@@ -1,7 +1,3 @@
-# MindMate Harmony Space
-# MindMate Harmony Space
-# MindHarmony
-
 MindHarmony is a Jac-based prototype for mental-health tooling. It models users, emotions, triggers, activities, journal and mood entries, and therapy-session workflows. The project uses an LLM wrapper (Model) to analyze journal entries, assess patient responses, and generate supportive suggestions.
 
 Quick highlights
