@@ -1,542 +1,307 @@
-#Import BYLLM
-import from byllm.lib { Model }
 import from dotenv { load_dotenv }
 import os;
 import requests;
-import from mtllm.llm { Model }
+import from byllm.lib { Model}
 import base64;
 
-glob llm: Model = Model(model_name = "gemini/gemini-2.5-flash",api_key = os.getenv("GEMINI_API_KEY"));
+glob llm: Model = Model(model_name = "gemini/gemini-2.5-flash", api_key = os.getenv("GEMINI_API_KEY"));
 
-#glob llm = Model(verbose=True, model_name="gpt-4o-mini");
-
-node User {
-    has user_id: str;
-    has display_name: str;
-    has timezone: str = "UTC";
-    has preferences: dict = {};     # e.g., {"tone": "gentle", "panic_mode": true}
+node AssessmentContext {
+    has assessment_type: str;           # "initial", "follow-up", "crisis"
+    has number_of_questions: int;
+    has focus_areas: list = [];          # ["anxiety", "depression", "sleep"]
+    has clinical_guidelines: str = "";
+    has therapist_notes: str = "";
 }
 
-# Core Node Types
-
-node Emotion {
-    has user_id: str;
-    has created_at: str;
-    has label: str;                 # "sad", "anxious", "calm"
-    has category: str = "";
-    has intensity: int = 0;         # 1–10
-    has valence: str = "neutral";   # "negative", "neutral", "positive"
-    has context: str = "";
-}
-
-node Trigger {
-    has user_id: str;
-    has created_at: str;
-    has name: str;                  # "exam", "conflict", "social media"
-    has category: str = "";
-    has description: str = "";
-    has risk_level: str = "low";
-}
-
-node Activity {
-    has user_id: str;
-    has created_at: str;
+obj Patient {
+    has patient_id: str;
     has name: str;
-    has type: str = "";             # "self-care", "work"
-    has energy_level: int = 0;      #1-5
-    has helpfulness_tag: str = "unknown";
-    has description: str = "";
+    has email: str;
+    has age: int = 0;
+    has medical_history: str = "";
 }
 
-node Suggestion {
-    has user_id: str;
-    has created_at: str;
-    has title: str;
-    has content: str;
-    has category: str = "";
-    has duration_minutes: int = 5;
-    has source: str = "llm";       ## "llm", "clinician", "template"
-    has tags: list = [];           # e.g., ["anxiety", "sleep"] 
+obj Chat { has role: str; has content: str; }
+obj AssessmentQA { has question: str; has answer: str; has confidence: float = 1.0; }
+
+node TherapySession {
+    has assessment_context: AssessmentContext;
+    has patient: Patient;
+    has assessment_qa: list[AssessmentQA] = [];
+    has chat_history: list[Chat] = [];
+    has is_active: bool = False;
+    has assessment_started: bool = False;
+    has journal_entries: list = [];
+    has recommendations: list = [];
 }
 
-node PatientMedicalHistory {
-    has user_id: str;
-    has created_at: str;
-    has conditions: list = [];      # ["anxiety", "bipolar"]
-    has medications: list = [];
-    has therapy_status: str = "";
-    has risk_notes: str = "";
-    has allergies: list = [];
-}
-
-node JournalEntry {
-    has user_id: str;
-    has created_at: str;
-    has content: str;
-    has mood_score: int = 0;        
-    has notes: str = "";            
-    has emotion_labels: list = [];
-    has trigger_labels: list = [];
-    has risk_level: str = "mild";  # "mild", "moderate", "severe", "critical"
-}
+glob therapy_sessions: dict[str, TherapySession] = {};
 
 
-node MoodEntry {
-    has user_id: str;
-    has created_at: str;
-    has emoji: str;
-    has primary_emotion: str;
-    has mood_score: int = 0;        
-    has notes: str = "";            
-    has context_text: str = "";
-    has time_of_day: str = "";
-}
+def generate_assessment_question(
+    assessment_type: str,
+    focus_areas: str,
+    patient_history: str,
+    previous_answers: str,
+    clinical_guidelines: str
+) -> str by llm();
+
+sem generate_assessment_question = "Generate thoughtful therapeutic assessment questions that help evaluate the patient's mental health, emotional state, and wellbeing based on the provided context and clinical guidelines.";
+sem generate_assessment_question.assessment_type = "The type of assessment (initial, follow-up, or crisis evaluation).";
+sem generate_assessment_question.focus_areas = "The specific mental health areas to focus on (e.g., anxiety, depression, sleep quality).";
+sem generate_assessment_question.patient_history = "The patient's medical and mental health history.";
+sem generate_assessment_question.previous_answers = "Previous assessment answers to build context and continuity.";
+sem generate_assessment_question.clinical_guidelines = "Clinical best practices and assessment guidelines.";
 
 
-edge UserAll {
-    has relation_type: str;         
-    has created_at: str;             
-}
+def analyze_patient_response(
+    patient_answer: str,
+    question: str,
+    medical_history: str
+) -> str by llm();
 
-edge EmotionTrigger {
-    has count: int = 0;              # times this pair co-occurred
-    has last_seen_at: str = "";      # last time we saw this combo
-    has strength: float = 0.0;       # normalized correlation score (0.0–1.0)
-}
+sem analyze_patient_response = "Analyze the patient's response to assess emotional state, risk factors, and therapeutic needs.";
+sem analyze_patient_response.patient_answer = "The patient's response to the assessment question.";
+sem analyze_patient_response.question = "The original question asked.";
+sem analyze_patient_response.medical_history = "The patient's relevant medical and psychiatric history.";
 
-edge TriggerActivity {
-    has usage_count: int = 0;        # how many times user tried this activity
-    has helpfulness_score: float = 0.0;  # avg effect on mood (e.g., -5..+5)
-    has last_used_at: str = "";
-}
-# 
 
-edge ActivityEmotion {
-    has before_mood: int = 0;        # mood_score before activity
-    has after_mood: int = 0;         # mood_score after activity
-    has delta: int = 0;              # after_mood - before_mood
-    has recorded_at: str = "";       # timestamp
-}
+def generate_therapy_recommendations(
+    assessment_summary: str,
+    focus_areas: str,
+    patient_preferences: str
+) -> str by llm();
 
-edge LoggedEmotion {
-    has confidence: float = 1.0;     # LLM confidence in this label (0.0–1.0)
-    has source: str = "llm";         # "llm", "user", "rule"
-}
+sem generate_therapy_recommendations = "Generate personalized therapeutic recommendations and coping strategies based on the assessment findings.";
+sem generate_therapy_recommendations.assessment_summary = "Summary of the assessment findings and identified issues.";
+sem generate_therapy_recommendations.focus_areas = "The main areas of concern identified during assessment.";
+sem generate_therapy_recommendations.patient_preferences = "The patient's preferences for therapeutic approaches.";
 
-edge LoggedTrigger {
-    has confidence: float = 1.0;
-    has source: str = "llm";         # label origin
-}
 
-edge SuggestionLink {
-    has relation_type: str;          # "for_emotion", "for_trigger"
-    has created_at: str;             
-    has usage_count: int = 0;        # how many times suggested to user
-    has avg_effect: float = 0.0;     # avg mood delta when used
-}
-#GET OR CREATE USER
-walker get_or_create_user {
-    has user_id: str;
-    has display_name: str = "";
-    has timezone: str = "UTC";
+walker RegisterPatientWalker {
+    has assessment_context: AssessmentContext;
+    has patients: list[dict];
 
-    obj __specs__ {
-        static has auth: bool = False;
-    }
+    obj __specs__ { static has auth: bool = False; }
 
-    can entrypoint with `root entry {
-        users = [root -->(`?User)](?user_id == self.user_id);
-
-        if users {
-            user = users[0];
-        } else {
-            user = User(
-                user_id=self.user_id,
-                display_name=self.display_name if self.display_name else self.user_id,
-                timezone=self.timezone
+    can execute with `root entry {
+        for patient_data in self.patients {
+            patient = Patient(
+                patient_id=patient_data.get("patient_id", ""),
+                name=patient_data.get("name", ""),
+                email=patient_data.get("email", ""),
+                age=patient_data.get("age", 0),
+                medical_history=patient_data.get("medical_history", "")
             );
-            root ++> user;
+
+            session = TherapySession(
+                assessment_context=self.assessment_context,
+                patient=patient,
+                is_active=True,
+                assessment_started=False
+            );
+
+            therapy_sessions[patient.patient_id] = session;
         }
 
         report {
-            "user_id": user.user_id,
-            "display_name": user.display_name,
-            "timezone": user.timezone
+            "status": "registered",
+            "patient_count": len(self.patients),
+            "assessment_type": self.assessment_context.assessment_type
         };
     }
 }
 
-# LOG MOOD ENTRY
-walker log_mood_entry {
-    has user_id: str;
-    has created_at: str;
-    has mood_score: int;
-    has emoji: str;
-    has primary_emotion: str;
-    has notes: str = "";
-    has context_text: str = "";
-    has time_of_day: str = "";
+walker StartAssessmentWalker {
+    has patient_id: str;
+    has assessment_type: str = "initial";
+    has focus_areas: list = [];
 
-    obj __specs__ {
-        static has auth: bool = False;
-    }
+    obj __specs__ { static has auth: bool = False; }
 
-    can entrypoint with `root entry {
-        # Get or create user
-        users = [root -->(`?User)](?user_id == self.user_id);
-        if users {
-            user = users[0];
-        } else {
-            user = User(
-                user_id=self.user_id,
-                display_name=self.user_id
-            );
-            root ++> user;
+    can execute with `root entry {
+        if patient_id not in therapy_sessions {
+            report {"error": "Patient not found", "patient_id": self.patient_id};
+            return;
         }
 
-        mood = MoodEntry(
-            user_id=self.user_id,
-            created_at=self.created_at,
-            mood_score=self.mood_score,
-            notes=self.notes,
-            emoji=self.emoji,
-            primary_emotion=self.primary_emotion,
-            context_text=self.context_text,
-            time_of_day=self.time_of_day
+        session = therapy_sessions[self.patient_id];
+        session.is_active = True;
+        session.assessment_started = True;
+        session.assessment_context.assessment_type = self.assessment_type;
+        session.assessment_context.focus_areas = self.focus_areas;
+
+        session.chat_history.append(Chat(
+            role="therapist",
+            content="Hello! I'm here to support your mental health journey. Let's begin our assessment to better understand how you're doing."
+        ));
+
+        report {
+            "status": "assessment_started",
+            "patient_id": self.patient_id,
+            "assessment_type": self.assessment_type,
+            "focus_areas": self.focus_areas
+        };
+    }
+}
+
+walker SubmitAssessmentAnswerWalker {
+    has patient_id: str;
+    has answer: str;
+    has question: str = "";
+
+    obj __specs__ { static has auth: bool = False; }
+
+    can execute with `root entry {
+        if patient_id not in therapy_sessions {
+            report {"error": "Patient not found", "patient_id": self.patient_id};
+            return;
+        }
+
+        session = therapy_sessions[self.patient_id];
+
+        # Analyze the patient's response
+        response_analysis = analyze_patient_response(
+            self.answer,
+            self.question,
+            session.patient.medical_history
         );
 
-        user +>:UserAll(
-            relation_type="mood_entry",
-            created_at=self.created_at
-        ):+> mood;
+        qa_pair = AssessmentQA(
+            question=self.question,
+            answer=self.answer,
+            confidence=1.0
+        );
+
+        session.assessment_qa.append(qa_pair);
+
+        session.chat_history.append(Chat(
+            role="patient",
+            content=self.answer
+        ));
+
+        session.chat_history.append(Chat(
+            role="therapist",
+            content=response_analysis
+        ));
 
         report {
-            "status": "logged",
-            "user_id": self.user_id,
-            "mood_score": self.mood_score,
-            "primary_emotion": self.primary_emotion,
-            "created_at": self.created_at
+            "status": "answer_recorded",
+            "patient_id": self.patient_id,
+            "question_count": len(session.assessment_qa),
+            "analysis": response_analysis
         };
     }
 }
 
-# LOG JOURNAL ENTRY + ANALYSIS
-walker log_journal_entry {
-    has user_id: str;
+walker SubmitJournalEntryWalker {
+    has patient_id: str;
+    has journal_content: str;
     has created_at: str;
-    has content: str;
     has mood_score: int = 0;
-    has notes: str = "";
 
-    obj __specs__ {
-        static has auth: bool = False;
-    }
+    obj __specs__ { static has auth: bool = False; }
 
-    can entrypoint with `root entry {
-        # 1. Get or create user
-        users = [root-->(`?User)](?user_id == self.user_id);
-
-        if users {
-            user = users[0];
-        } else {
-            user = User(
-                user_id=self.user_id,
-                display_name=self.user_id
-            );
-            root ++> user;
+    can execute with `root entry {
+        if patient_id not in therapy_sessions {
+            report {"error": "Patient not found", "patient_id": self.patient_id};
+            return;
         }
 
-        # 2. Call LLM to analyze the journal content
-        analysis = analyze_journal_entry(self.content);
+        session = therapy_sessions[self.patient_id];
 
-        emotion_labels = analysis.get("emotion_labels", []);
-        trigger_labels = analysis.get("trigger_labels", []);
-        risk_level = analysis.get("risk_level", "mild");
+        journal_entry = {
+            "content": self.journal_content,
+            "mood_score": self.mood_score,
+            "created_at": self.created_at
+        };
 
-        # 3. Create the JournalEntry node
-        journal = JournalEntry(
-            user_id=self.user_id,
-            created_at=self.created_at,
-            content=self.content,
-            mood_score=self.mood_score,
-            notes=self.notes,
-            emotion_labels=emotion_labels,
-            trigger_labels=trigger_labels,
-            risk_level=risk_level
+        session.journal_entries.append(journal_entry);
+
+        # Generate supportive suggestions based on journal
+        suggestions = generate_therapy_recommendations(
+            self.journal_content,
+            " ".join(session.assessment_context.focus_areas),
+            ""
         );
 
-        # Attach journal to user
-        user +>:UserAll(
-            relation_type="journal_entry",
-            created_at=self.created_at
-        ):+> journal;
+        session.chat_history.append(Chat(
+            role="therapist",
+            content=suggestions
+        ));
 
-        # 4. Link to Emotion nodes
-        for label in emotion_labels {
-            emotions = [user-->(`?Emotion)](?label == label);
-
-            if emotions {
-                e = emotions[0];
-            } else {
-                e = Emotion(
-                    user_id=self.user_id,
-                    created_at=self.created_at,
-                    label=label
-                );
-                user +>:UserAll(
-                    relation_type="emotion",
-                    created_at=self.created_at
-                ):+> e;
-            }
-
-            journal +>:LoggedEmotion(
-                confidence=1.0,
-                source="llm"
-            ):+> e;
-        }
-
-        # 5. Link to Trigger nodes
-        for t_label in trigger_labels {
-            triggers = [user-->(`?Trigger)](?name == t_label);
-
-            if triggers {
-                t = triggers[0];
-            } else {
-                t = Trigger(
-                    user_id=self.user_id,
-                    created_at=self.created_at,
-                    name=t_label
-                );
-                user +>:UserAll(
-                    relation_type="trigger",
-                    created_at=self_created_at
-                ):+> t;
-            }
-
-            journal +>:LoggedTrigger(
-                confidence=1.0,
-                source="llm"
-            ):+> t;
-        }
-
-        # 6. Final API response
         report {
-            "status": "logged",
-            "user_id": self.user_id,
-            "risk_level": risk_level,
-            "emotion_labels": emotion_labels,
-            "trigger_labels": trigger_labels,
+            "status": "journal_logged",
+            "patient_id": self.patient_id,
+            "mood_score": self.mood_score,
+            "suggestions": suggestions,
             "created_at": self.created_at
         };
     }
 }
 
-#LIST RECENT MOODS
-
-walker list_recent_moods {
-    has user_id: str;
-    has limit: int = 20;
-
-    obj __specs__ {
-        static has auth: bool = False;
-    }
-
-    can entrypoint with `root entry {
-        users = [root -->(`?User)](?user_id == self.user_id);
-        if not users {
-            report {"user_id": self.user_id, "moods": [], "count": 0};
-            return;
-        }
-
-        user = users[0];
-
-        moods = [user --> (`?MoodEntry)];
-        # For MVP we won't sort; frontend can sort by created_at.
-
-        result = [];
-        count = 0;
-
-        for m in moods {
-            if count >= self.limit {
-                break;
-            }
-            result.append({
-                "created_at": m.created_at,
-                "mood_score": m.mood_score,
-                "emoji": m.emoji,
-                "primary_emotion": m.primary_emotion,
-                "notes": m.notes,
-                "time_of_day": m.time_of_day
-            });
-            count += 1;
-        }
-
-        report {
-            "user_id": self.user_id,
-            "moods": result,
-            "count": count
-        };
-    }
-}
-# LIST RECENT JOURNALS
-walker list_recent_journals {
-    has user_id: str;
-    has limit: int = 20;
-
-    obj __specs__ {
-        static has auth: bool = False;
-    }
-
-    can entrypoint with `root entry {
-        users = [root -->(`?User)](?user_id == self.user_id);
-        if not users {
-            report {"user_id": self.user_id, "journals": [], "count": 0};
-            return;
-        }
-
-        user = users[0];
-
-        journals = [user --> (`?JournalEntry)];
-        result = [];
-        count = 0;
-
-        for j in journals {
-            if count >= self.limit {
-                break;
-            }
-            result.append({
-                "created_at": j.created_at,
-                "mood_score": j.mood_score,
-                "content": j.content,
-                "notes": j.notes,
-                "emotion_labels": j.emotion_labels,
-                "trigger_labels": j.trigger_labels,
-                "risk_level": j.risk_level
-            });
-            count += 1;
-        }
-
-        report {
-            "user_id": self.user_id,
-            "journals": result,
-            "count": count
-        };
-    }
-}
-# GENERATE SUPPORT SUGGESTIONS
-walker generate_suggestions {
-    has user_id: str;
+walker GenerateRecommendationsWalker {
+    has patient_id: str;
     has created_at: str;
-    has mood_limit: int = 10;
-    has journal_limit: int = 5;
 
-    obj __specs__ {
-        static has auth: bool = False;
-    }
+    obj __specs__ { static has auth: bool = False; }
 
-    can entrypoint with `root entry {
-        users = [root -->(`?User)](?user_id == self.user_id);
-        if not users {
-            report {"error": "User not found", "user_id": self.user_id};
+    can execute with `root entry {
+        if patient_id not in therapy_sessions {
+            report {"error": "Patient not found", "patient_id": self.patient_id};
             return;
         }
 
-        user = users[0];
+        session = therapy_sessions[self.patient_id];
 
-        moods = [user --> (`?MoodEntry)];
-        journals = [user --> (`?JournalEntry)];
-        histories = [user --> (`?PatientMedicalHistory)];
-
-        recent_moods = [];
-        m_count = 0;
-        for m in moods {
-            if m_count >= self.mood_limit {
-                break;
-            }
-            recent_moods.append({
-                "created_at": m.created_at,
-                "mood_score": m.mood_score,
-                "emoji": m.emoji,
-                "primary_emotion": m.primary_emotion,
-                "context_text": m.context_text,
-                "time_of_day": m.time_of_day
-            });
-            m_count += 1;
+        assessment_summary = "";
+        for qa in session.assessment_qa {
+            assessment_summary += f"Q: {qa.question}\nA: {qa.answer}\n";
         }
 
-        recent_journals = [];
-        j_count = 0;
-        for j in journals {
-            if j_count >= self.journal_limit {
-                break;
-            }
-            recent_journals.append({
-                "created_at": j.created_at,
-                "mood_score": j.mood_score,
-                "content": j.content,
-                "emotion_labels": j.emotion_labels,
-                "trigger_labels": j.trigger_labels,
-                "risk_level": j.risk_level
-            });
-            j_count += 1;
-        }
+        recommendations = generate_therapy_recommendations(
+            assessment_summary,
+            " ".join(session.assessment_context.focus_areas),
+            session.patient.name
+        );
 
-        med_history = {};
-        if histories {
-            h = histories[0];
-            med_history = {
-                "conditions": h.conditions,
-                "medications": h.medications,
-                "therapy_status": h.therapy_status,
-                "risk_notes": h.risk_notes,
-                "allergies": h.allergies
-            };
-        }
-
-        state = {
-            "user_id": self.user_id,
-            "recent_moods": recent_moods,
-            "recent_journals": recent_journals,
-            "preferences": user.preferences,
-            "medical_history": med_history
-        };
-
-        response = generate_supportive_suggestions(state);
-        suggestions_data = response.get("suggestions", []);
-
-        created_titles = [];
-
-        for s in suggestions_data {
-            title = s.get("title", "Suggestion");
-            content = s.get("content", "");
-            category = s.get("category", "");
-            duration = s.get("duration_minutes", 5);
-            tags = s.get("tags", []);
-
-            sug = Suggestion(
-                user_id=self.user_id,
-                created_at=self.created_at,
-                title=title,
-                content=content,
-                category=category,
-                duration_minutes=duration,
-                source="llm",
-                tags=tags
-            );
-
-            user +>:UserAll(
-                relation_type="suggestion",
-                created_at=self.created_at
-            ):+> sug;
-
-            created_titles.append(title);
-        }
+        session.recommendations.append({
+            "created_at": self.created_at,
+            "content": recommendations
+        });
 
         report {
-            "user_id": self.user_id,
-            "created_at": self.created_at,
-            "suggestion_count": len(created_titles),
-            "titles": created_titles
+            "status": "recommendations_generated",
+            "patient_id": self.patient_id,
+            "recommendations": recommendations,
+            "created_at": self.created_at
+        };
+    }
+}
+
+walker GetSessionSummaryWalker {
+    has patient_id: str;
+
+    obj __specs__ { static has auth: bool = False; }
+
+    can execute with `root entry {
+        if patient_id not in therapy_sessions {
+            report {"error": "Patient not found", "patient_id": self.patient_id};
+            return;
+        }
+
+        session = therapy_sessions[self.patient_id];
+
+        report {
+            "patient_id": self.patient_id,
+            "patient_name": session.patient.name,
+            "assessment_started": session.assessment_started,
+            "is_active": session.is_active,
+            "qa_count": len(session.assessment_qa),
+            "journal_entries": len(session.journal_entries),
+            "focus_areas": session.assessment_context.focus_areas,
+            "recommendation_count": len(session.recommendations)
         };
     }
 }
