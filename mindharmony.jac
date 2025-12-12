@@ -1,8 +1,10 @@
+import litellm;
 import from dotenv { load_dotenv }
 import os;
 import requests;
-import from byllm.lib { Model}
 import base64;
+import from byllm.lib { Model}
+
 
 glob llm: Model = Model(model_name = "gemini/gemini-2.5-flash", api_key = os.getenv("GEMINI_API_KEY"));
 
@@ -121,7 +123,7 @@ walker StartAssessmentWalker {
     obj __specs__ { static has auth: bool = False; }
 
     can execute with `root entry {
-        if patient_id not in therapy_sessions {
+        if self.patient_id not in therapy_sessions {
             report {"error": "Patient not found", "patient_id": self.patient_id};
             return;
         }
@@ -154,7 +156,7 @@ walker SubmitAssessmentAnswerWalker {
     obj __specs__ { static has auth: bool = False; }
 
     can execute with `root entry {
-        if patient_id not in therapy_sessions {
+        if self.patient_id not in therapy_sessions {
             report {"error": "Patient not found", "patient_id": self.patient_id};
             return;
         }
@@ -204,7 +206,7 @@ walker SubmitJournalEntryWalker {
     obj __specs__ { static has auth: bool = False; }
 
     can execute with `root entry {
-        if patient_id not in therapy_sessions {
+        if self.patient_id not in therapy_sessions {
             report {"error": "Patient not found", "patient_id": self.patient_id};
             return;
         }
@@ -248,7 +250,7 @@ walker GenerateRecommendationsWalker {
     obj __specs__ { static has auth: bool = False; }
 
     can execute with `root entry {
-        if patient_id not in therapy_sessions {
+        if self.patient_id not in therapy_sessions {
             report {"error": "Patient not found", "patient_id": self.patient_id};
             return;
         }
@@ -286,7 +288,7 @@ walker GetSessionSummaryWalker {
     obj __specs__ { static has auth: bool = False; }
 
     can execute with `root entry {
-        if patient_id not in therapy_sessions {
+        if self.patient_id not in therapy_sessions {
             report {"error": "Patient not found", "patient_id": self.patient_id};
             return;
         }
@@ -305,3 +307,4 @@ walker GetSessionSummaryWalker {
         };
     }
 }
+
