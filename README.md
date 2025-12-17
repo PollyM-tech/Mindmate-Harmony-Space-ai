@@ -1,4 +1,6 @@
-MindHarmony is a Jac-based prototype for mental-health tooling. It models users, emotions, triggers, activities, journal and mood entries, and therapy-session workflows. The project uses an LLM wrapper (Model) to analyze journal entries, assess patient responses, and generate supportive suggestions.
+BetterAI
+
+BetterAI is a Jac-based prototype for mental-health tooling. It models users, emotions, triggers, activities, journal and mood entries, and therapy-session workflows. The project uses an LLM wrapper (Model) to analyze journal entries, assess patient responses, and generate supportive suggestions.
 
 Quick highlights
 - Node and edge models for users, emotions, triggers, suggestions, journaling, and therapy sessions.
@@ -28,7 +30,7 @@ Quick start
    - Install Jac runtime per project instructions.
 2. Set environment variables (or create `.env`).
 3. Run the Jac module (example):
-   - jac run mindharmony.jac
+   - jac run /home/hmungania/code/mindharmony.jac
 4. Invoke walkers as your integration requires (e.g., register patients, start assessments).
 
 Notes & troubleshooting
