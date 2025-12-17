@@ -6,7 +6,8 @@ import base64;
 import from byllm.lib { Model}
 
 
-glob llm: Model = Model(model_name = "gemini/gemini-2.5-flash", api_key = os.getenv("GEMINI_API_KEY"));
+glob llm: Model = Model(model_name = "gemini/gemini-2.5-flash",api_key = os.getenv("GEMINI_API_KEY"));
+
 
 node AssessmentContext {
     has assessment_type: str;           # "initial", "follow-up", "crisis"
@@ -22,6 +23,7 @@ obj Patient {
     has email: str;
     has age: int = 0;
     has medical_history: str = "";
+    has gender: str = "unknown";    # added gender field
 }
 
 obj Chat { has role: str; has content: str; }
@@ -39,6 +41,15 @@ node TherapySession {
 }
 
 glob therapy_sessions: dict[str, TherapySession] = {};
+glob assessment_stats: dict = {
+    "registered_count": 0,
+    "started_count": 0,
+    "answers_total": 0,
+    "patients_assessed": [],
+    "registered_list": [],
+    "focus_counts": {},
+    "gender_counts": {}    # added gender_counts
+};
 
 
 def generate_assessment_question(
@@ -88,13 +99,26 @@ walker RegisterPatientWalker {
     obj __specs__ { static has auth: bool = False; }
 
     can execute with `root entry {
+        # track newly registered vs already registered
+        new_count = 0;
+        already_registered_ids = [];
+
         for patient_data in self.patients {
+            pid = patient_data.get("patient_id", "");
+
+            # if session already exists, mark as already registered and skip creating a new session
+            if pid in therapy_sessions {
+                already_registered_ids.append(pid);
+                continue;
+            }
+
             patient = Patient(
-                patient_id=patient_data.get("patient_id", ""),
+                patient_id=pid,
                 name=patient_data.get("name", ""),
                 email=patient_data.get("email", ""),
                 age=patient_data.get("age", 0),
-                medical_history=patient_data.get("medical_history", "")
+                medical_history=patient_data.get("medical_history", ""),
+                gender=patient_data.get("gender", "unknown")    # capture gender on registration
             );
 
             session = TherapySession(
@@ -105,11 +129,32 @@ walker RegisterPatientWalker {
             );
 
             therapy_sessions[patient.patient_id] = session;
+
+            # Update assessment stats for registration
+            if "registered_list" not in assessment_stats {
+                assessment_stats["registered_list"] = [];
+            }
+            if patient.patient_id not in assessment_stats["registered_list"] {
+                assessment_stats["registered_list"].append(patient.patient_id);
+                assessment_stats["registered_count"] += 1;
+
+                # update gender_counts
+                g = patient.gender;
+                if g == "" { g = "unknown"; }
+                if g not in assessment_stats["gender_counts"] {
+                    assessment_stats["gender_counts"][g] = 0;
+                }
+                assessment_stats["gender_counts"][g] += 1;
+            }
+            new_count += 1;
         }
 
         report {
             "status": "registered",
             "patient_count": len(self.patients),
+            "new_registered_count": new_count,
+            "already_registered_count": len(already_registered_ids),
+            "already_registered": already_registered_ids,
             "assessment_type": self.assessment_context.assessment_type
         };
     }
@@ -133,6 +178,15 @@ walker StartAssessmentWalker {
         session.assessment_started = True;
         session.assessment_context.assessment_type = self.assessment_type;
         session.assessment_context.focus_areas = self.focus_areas;
+
+        # Update stats for started assessments
+        assessment_stats["started_count"] += 1;
+        for fa in self.focus_areas {
+            if fa not in assessment_stats["focus_counts"] {
+                assessment_stats["focus_counts"][fa] = 0;
+            }
+            assessment_stats["focus_counts"][fa] += 1;
+        }
 
         session.chat_history.append(Chat(
             role="therapist",
@@ -177,6 +231,12 @@ walker SubmitAssessmentAnswerWalker {
         );
 
         session.assessment_qa.append(qa_pair);
+
+        # Update assessment statistics
+        assessment_stats["answers_total"] += 1;
+        if self.patient_id not in assessment_stats["patients_assessed"] {
+            assessment_stats["patients_assessed"].append(self.patient_id);
+        }
 
         session.chat_history.append(Chat(
             role="patient",
@@ -308,3 +368,129 @@ walker GetSessionSummaryWalker {
     }
 }
 
+walker PatientVisitStatsWalker {
+    has patient_id: str = "";
+
+    obj __specs__ { static has auth: bool = False; }
+
+    can execute with `root entry {
+        registered = assessment_stats.get("registered_count", 0);
+        started = assessment_stats.get("started_count", 0);
+        registered_list = assessment_stats.get("registered_list", []);
+        gender_counts = assessment_stats.get("gender_counts", {});
+        patients_assessed_list = assessment_stats.get("patients_assessed", []);
+
+        visited_list = [];
+        # collect patient_ids whose sessions have assessment_started = True
+        for pid in therapy_sessions {
+            sess = therapy_sessions[pid];
+            if sess.assessment_started {
+                visited_list.append(pid);
+            }
+        }
+
+        # optional per-patient query
+        if self.patient_id != "" {
+            is_registered = self.patient_id in registered_list;
+            is_visited = self.patient_id in visited_list;
+            report {
+                "patient_id": self.patient_id,
+                "is_registered": is_registered,
+                "is_visited": is_visited
+            };
+            return;
+        }
+
+        report {
+            "registered_count": registered,
+            "visited_count": len(visited_list),
+            "started_count": started,
+            "registered_list": registered_list,
+            "visited_list": visited_list,
+            "gender_counts": gender_counts,    # include gender_counts in the report
+            "patients_assessed_count": len(patients_assessed_list)   # new: number of patients who answered assessments
+        };
+    }
+}
+
+# API ENDPOINTS (walkers)
+# ------------------------------------------------------------------
+# RegisterPatientWalker
+# Inputs:
+#   - assessment_context: AssessmentContext
+#   - patients: list[dict]  (each dict: patient_id, name, email, age, medical_history)
+# Report:
+#   { "status": "registered", "patient_count": <int>, "assessment_type": <str> }
+#
+# StartAssessmentWalker
+# Inputs:
+#   - patient_id: str
+#   - assessment_type: str = "initial"
+#   - focus_areas: list = []
+# Report:
+#   { "status": "assessment_started", "patient_id": <str>, "assessment_type": <str>, "focus_areas": <list> }
+#
+# SubmitAssessmentAnswerWalker
+# Inputs:
+#   - patient_id: str
+#   - answer: str
+#   - question: str = ""
+# Behavior:
+#   - Calls analyze_patient_response(...) (LLM)
+#   - Appends AssessmentQA and chat history
+# Report:
+#   { "status": "answer_recorded", "patient_id": <str>, "question_count": <int>, "analysis": <str> }
+#
+# SubmitJournalEntryWalker
+# Inputs:
+#   - patient_id: str
+#   - journal_content: str
+#   - created_at: str
+#   - mood_score: int = 0
+# Behavior:
+#   - Stores journal entry, calls generate_therapy_recommendations(...) (LLM), appends to chat_history
+# Report:
+#   { "status": "journal_logged", "patient_id": <str>, "mood_score": <int>, "suggestions": <str>, "created_at": <str> }
+#
+# GenerateRecommendationsWalker
+# Inputs:
+#   - patient_id: str
+#   - created_at: str
+# Behavior:
+#   - Summarizes assessment QA, calls generate_therapy_recommendations(...) (LLM)
+#   - Appends recommendations to session.recommendations
+# Report:
+#   { "status": "recommendations_generated", "patient_id": <str>, "recommendations": <str>, "created_at": <str> }
+#
+# GetSessionSummaryWalker
+# Inputs:
+#   - patient_id: str
+# Report:
+#   {
+#     "patient_id": <str>,
+#     "patient_name": <str>,
+#     "assessment_started": <bool>,
+#     "is_active": <bool>,
+#     "qa_count": <int>,
+#     "journal_entries": <int>,
+#     "focus_areas": <list>,
+#     "recommendation_count": <int>
+#   }
+#
+# PatientVisitStatsWalker
+# Inputs:
+#   - patient_id: str (optional)
+# Report:
+#   {
+#     "registered_count": <int>,
+#     "visited_count": <int>,
+#     "started_count": <int>,
+#     "registered_list": [<list of patient_ids>],
+#     "visited_list": [<list of patient_ids>]
+#   }
+#
+# Notes:
+# - These walkers are the program endpoints — invoke via your Jac runner or API layer.
+# - Provide required fields exactly (non-default args must be provided).
+# - LLM-backed functions return strings; validate/parse as needed before persisting or presenting.
+# ------------------------------------------------------------------
