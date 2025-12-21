@@ -6,7 +6,10 @@ import base64;
 import from byllm.lib { Model}
 
 
-glob llm: Model = Model(model_name = "gemini/gemini-2.5-flash",api_key = os.getenv("GEMINI_API_KEY"));
+glob llm: Model = Model(
+    model_name = "gemini/gemini-2.5-flash",
+    api_key = os.getenv("GEMINI_API_KEY")
+    );
 
 
 node AssessmentContext {

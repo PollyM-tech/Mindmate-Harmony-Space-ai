@@ -30,8 +30,9 @@ Quick start
    - Install Jac runtime per project instructions.
 2. Set environment variables (or create `.env`).
 3. Run the Jac module (example):
-   - jac run /home/hmungania/code/mindharmony.jac
-4. Invoke walkers as your integration requires (e.g., register patients, start assessments).
+   - Jac Client expects a running Jac server. So you must start backend first:
+   - python run.py
+   - streamlit run app.py 
 
 Notes & troubleshooting
 - Ensure walker signatures have non-default arguments before default ones (Jac/Python restriction).

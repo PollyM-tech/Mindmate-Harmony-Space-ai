@@ -1,0 +1,8 @@
+jaseci
+byllm
+streamlit
+python-dotenv
+requests
+litellm
+google-generativeai
+jac-client

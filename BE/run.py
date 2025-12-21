@@ -1,20 +1,17 @@
 import os
-from dotenv import load_dotenv
 import subprocess
+from dotenv import load_dotenv
 
-# Load .env file
 load_dotenv()
 
-api_key = os.getenv("GEMINI_API_KEY")
-
+api_key = os.getenv("GEMINI_API_KEY", "").strip()
 if not api_key:
-    raise ValueError("GEMINI_API_KEY not found in .env file")
+    raise ValueError("GEMINI_API_KEY not found in .env")
 
-# Pass key to subprocess environment
 env = os.environ.copy()
 env["GEMINI_API_KEY"] = api_key
 
+# Optional: set a port explicitly
+# env["JAC_SERVER_PORT"] = "8000"
 
-# Run Jac with updated environment
-#subprocess.run(["run", "example.jac"], env=env)
-subprocess.run(["jac", "serve", "mindharmony.jac"], env=env)  
+subprocess.run(["jac", "serve", "mindharmony.jac"], env=env, check=True)
