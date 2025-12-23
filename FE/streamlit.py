@@ -3,6 +3,9 @@ import requests
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
+# ============================================================
+# Config
+# ============================================================
 API_BASE_URL = "http://localhost:8000"
 
 st.set_page_config(
@@ -11,9 +14,9 @@ st.set_page_config(
     initial_sidebar_state="expanded",
 )
 
-# -------------------------------------------------------------------
-# ✅ STYLES (FULL)
-# -------------------------------------------------------------------
+# ============================================================
+# ✅ STYLES (YOUR THEME — unchanged colors)
+# ============================================================
 st.markdown(
     """
 <style>
@@ -33,14 +36,14 @@ body, .stApp {
 }
 
 /* =========================
-   ✅ SIDEBAR LOOK + MENU LABEL VISIBLE
+   ✅ SIDEBAR LOOK (keeps blue/white)
    ========================= */
 [data-testid="stSidebar"]{
-    background: linear-gradient(180deg,#f0f8ff 0%,#e6f2ff 100%);
-    color: #07263b;
-    padding: 1rem;
-    border-right: 1px solid rgba(7,38,59,0.06);
-    box-shadow: 0 2px 8px rgba(3,27,45,0.03);
+    background: linear-gradient(180deg,#f0f8ff 0%,#e6f2ff 100%) !important;
+    color: #07263b !important;
+    padding: 1rem !important;
+    border-right: 1px solid rgba(7,38,59,0.06) !important;
+    box-shadow: 0 2px 8px rgba(3,27,45,0.03) !important;
 }
 
 /* reduce extra padding inside sidebar content */
@@ -48,11 +51,19 @@ body, .stApp {
     padding: 0.25rem 0.5rem 0.5rem 0.5rem !important;
 }
 
-/* expander header stays subtle (theme-safe) */
+/* =========================
+   ✅ EXPANDER (fix dark/black issue)
+   ========================= */
+section[data-testid="stSidebar"] details {
+    background: transparent !important;
+    border: 0 !important;
+}
+
 section[data-testid="stSidebar"] details > summary{
     background: rgba(7,38,59,0.06) !important;
     padding: 8px 10px !important;
     border-radius: 10px !important;
+    border: 1px solid rgba(7,38,59,0.10) !important;
 }
 
 /* expander title text + arrow visible */
@@ -69,8 +80,15 @@ section[data-testid="stSidebar"] details > summary:hover{
     background: rgba(7,38,59,0.10) !important;
 }
 
+/* expander content background (prevents black block) */
+section[data-testid="stSidebar"] details > div {
+    background: transparent !important;
+    border: 0 !important;
+    padding-top: 8px !important;
+}
+
 /* =========================
-   ✅ COMPACT UNIFORM BUTTONS
+   ✅ COMPACT UNIFORM BUTTONS (same blue)
    ========================= */
 :root{
   --btn-bg: #2563eb;
@@ -87,6 +105,7 @@ section[data-testid="stSidebar"] details > summary:hover{
   --btn-shadow-hover: 0 4px 10px rgba(37,99,235,.20);
 }
 
+/* IMPORTANT: sidebar buttons + app buttons */
 div.stButton > button,
 div.stFormSubmitButton > button,
 div.stDownloadButton > button,
@@ -111,6 +130,10 @@ div.stDownloadButton > button,
     box-shadow: var(--btn-shadow) !important;
     margin-bottom: 6px !important;
     text-align: left !important;
+
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
 
     transition: all 0.12s ease !important;
 }
@@ -208,7 +231,7 @@ pre, code {
 }
 
 /* =========================
-   ✅ LANDING ANIMATION + CENTERED HERO
+   ✅ LANDING ANIMATION
    ========================= */
 @keyframes fadeUp {
     from { opacity: 0; transform: translateY(16px); }
@@ -270,9 +293,9 @@ pre, code {
     unsafe_allow_html=True,
 )
 
-# -------------------------------------------------------------------
+# ============================================================
 # ✅ Jac HTTP Client
-# -------------------------------------------------------------------
+# ============================================================
 def safe_json(resp: requests.Response) -> Any:
     try:
         return resp.json()
@@ -288,7 +311,6 @@ def call_walker(walker: str, payload: Dict[str, Any]) -> Dict[str, Any]:
 
         if r.status_code == 404:
             return {"error": f"Walker not found: {walker}"}
-
         if not r.ok:
             return {"error": f"HTTP {r.status_code}", "details": data}
 
@@ -309,9 +331,9 @@ def first_report(resp: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     return None
 
 
-# -------------------------------------------------------------------
+# ============================================================
 # ✅ Mood emoji mapping
-# -------------------------------------------------------------------
+# ============================================================
 def mood_feedback(score: int):
     if score >= 8:
         return "😄", "Feeling good", "#16a34a"
@@ -322,71 +344,40 @@ def mood_feedback(score: int):
     return "😢", "Struggling", "#dc2626"
 
 
-# -------------------------------------------------------------------
-# ✅ Friendly UI building blocks
-# -------------------------------------------------------------------
-def card(title: str, body_html: str, tone: str = "info"):
-    border = {"info": "#3b82f6", "success": "#10b981", "warn": "#f59e0b", "error": "#ef4444"}.get(tone, "#3b82f6")
-    st.markdown(
-        f"""
-<div style="
-    background:#ffffff;
-    border:1px solid #e5e7eb;
-    border-left:6px solid {border};
-    border-radius:14px;
-    padding:14px;
-    box-shadow:0 2px 10px rgba(15,23,36,0.06);
-    margin-top:10px;
-">
-  <div style="font-size:16px;font-weight:700;color:#111827;margin-bottom:8px;">
-    {title}
-  </div>
-  <div style="color:#111827;font-size:14px;line-height:1.65;">
-    {body_html}
-  </div>
-</div>
-""",
-        unsafe_allow_html=True,
-    )
-
-
-def long_text(text: str):
-    safe = (text or "").replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br>")
-    st.markdown(
-        f"""
-<div style="
-    background:#ffffff;
-    border:1px solid #e5e7eb;
-    border-radius:14px;
-    padding:14px;
-    margin-top:10px;
-    color:#111827;
-    line-height:1.7;
-">{safe}</div>
-""",
-        unsafe_allow_html=True,
-    )
+# ============================================================
+# ✅ Small UI helpers
+# ============================================================
+def card(title: str, body: str, tone: str = "info"):
+    if tone == "success":
+        st.success(body)
+    elif tone == "warn":
+        st.warning(body)
+    elif tone == "error":
+        st.error(body)
+    else:
+        st.info(body)
 
 
 def show_error(resp: Dict[str, Any]):
     msg = resp.get("error", "Something went wrong.")
-    card("Something went wrong", f"<div>{msg}</div>", tone="error")
+    details = resp.get("details")
+    st.error(msg)
+    if details:
+        st.caption(str(details))
 
 
-# -------------------------------------------------------------------
+# ============================================================
 # ✅ App header
-# -------------------------------------------------------------------
+# ============================================================
 st.title("BetterHealthAi")
-st.markdown(
-    "<p style='font-size:14px;margin-top:-6px;color:gray'>Mental Health Assessment Platform.</p>",
-    unsafe_allow_html=True,
-)
+st.caption("Mental Health Assessment Platform.")
 
-# -------------------------------------------------------------------
-# ✅ Sidebar menu (simple dropdown / collapsible)
-# -------------------------------------------------------------------
+# ============================================================
+# ✅ Sidebar menu (FIXED: use st.sidebar.button inside expander)
+#     - choice is ALWAYS defined
+#     - no 'return' at top-level (use st.stop when needed)
+# ============================================================
 menu_options = [
-    "Home",
     "Register Patient",
     "Start Assessment",
     "Submit Assessment Answer",
@@ -405,39 +396,68 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
+if st.sidebar.button("Home", key="btn_home", use_container_width=True):
+    st.session_state["active_action"] = "Home"
+
 with st.sidebar.expander("Menu", expanded=True):
     for opt in menu_options:
-        if st.button(opt, key=f"btn_{opt}"):
+        # IMPORTANT: st.sidebar.button (not st.button)
+        if st.sidebar.button(opt, key=f"btn_{opt}", use_container_width=True):
             st.session_state["active_action"] = opt
 
-    if st.button("Clear selection", key="btn_clear"):
+    if st.sidebar.button("Reset", key="btn_reset", use_container_width=True):
         st.session_state["active_action"] = "Home"
 
 choice = st.session_state["active_action"]
 
-# -------------------------------------------------------------------
-# ✅ Landing page (NO forms here)
-# -------------------------------------------------------------------
+# ============================================================
+# ✅ Pages
+# ============================================================
+
+# ---------------------------
+# Home / Landing
+# ---------------------------
 if choice == "Home":
     st.balloons()
-    st.subheader("Welcome")
 
-    st.write(
-        "This is a calm and supportive space where someone can check in, share how they feel, "
-        "and receive helpful guidance. It is designed for students, demos, and mental-health awareness."
+    st.markdown(
+        """
+<div class="landing-wrap">
+  <div class="landing-badge">💙</div>
+  <div class="landing-title">Welcome to BetterHealthAi</div>
+  <div class="landing-subtitle">A calm space to check in, reflect, and get supportive guidance.</div>
+
+  <div class="landing-card">
+    <p class="landing-text">
+      BetterAI is a Jac-based prototype for mental-health tooling.
+      It helps people share how they feel through simple questions and journaling.
+      It can also generate supportive suggestions and structured summaries for follow-ups.
+    </p>
+  </div>
+
+  <div class="landing-card">
+    <p class="landing-text">
+      If you are a student or young person, you can use it as a friendly check-in.
+      If you are a medical professional, you can use it to capture a clear session summary.
+    </p>
+    <p class="landing-tip">Start small. One honest sentence is enough to begin.</p>
+  </div>
+
+  <div class="landing-card">
+    <p class="landing-text">
+      To begin, open the menu on the left and click <b>Register Patient</b>.
+      After that, you can start an assessment, submit answers, write a journal entry,
+      and generate recommendations.
+    </p>
+  </div>
+</div>
+""",
+        unsafe_allow_html=True,
     )
 
-    st.write(
-        "To get started, click **Register Patient** from the menu. After registering, you can start an assessment, "
-        "submit answers, write a journal entry, and generate recommendations."
-    )
-
-    st.write("Small steps matter. Even one short sentence can be enough to begin.")
-
-
-# -------------------------------------------------------------------
-# ✅ Pages
-# -------------------------------------------------------------------
+# ---------------------------
+# Register Patient
+# ---------------------------
 elif choice == "Register Patient":
     st.header("Register Patient")
 
@@ -453,7 +473,10 @@ elif choice == "Register Patient":
 
     if submitted:
         payload = {
-            "assessment_context": {"assessment_type": assessment_type, "number_of_questions": int(num_questions)},
+            "assessment_context": {
+                "assessment_type": assessment_type,
+                "number_of_questions": int(num_questions),
+            },
             "patients": [
                 {
                     "patient_id": patient_id,
@@ -468,20 +491,23 @@ elif choice == "Register Patient":
         resp = call_walker("RegisterPatientWalker", payload)
         if "error" in resp:
             show_error(resp)
-        else:
-            rep = first_report(resp) or {}
-            if rep.get("already_registered_count", 0) > 0:
-                already = rep.get("already_registered", [])
-                card("Already registered", f"<div>This patient ID already exists: <b>{', '.join(already)}</b></div>", tone="warn")
-            else:
-                card("Registered", "<div>Patient registration completed successfully.</div>", tone="success")
+            st.stop()
 
+        rep = first_report(resp) or {}
+        if rep.get("already_registered_count", 0) > 0:
+            st.warning("This patient ID is already registered.")
+        else:
+            st.success("Patient registration completed successfully.")
+
+# ---------------------------
+# Start Assessment
+# ---------------------------
 elif choice == "Start Assessment":
     st.header("Start Assessment")
 
     with st.form("start_form"):
         start_patient_id = st.text_input("Patient ID", value="patient_001")
-        start_assessment_type = st.selectbox("Assessment Type (start)", ["initial", "follow-up", "crisis"])
+        start_assessment_type = st.selectbox("Assessment Type", ["initial", "follow-up", "crisis"])
         focus_areas = st.text_input("Focus areas (comma separated)", value="anxiety, sleep")
         start_sub = st.form_submit_button("Start Assessment")
 
@@ -495,20 +521,20 @@ elif choice == "Start Assessment":
         resp = call_walker("StartAssessmentWalker", payload)
         if "error" in resp:
             show_error(resp)
-        else:
-            rep = first_report(resp) or {}
-            card("🟢 Assessment started", "<div>You're good to go. You can now submit answers and journal entries.</div>", tone="success")
-            fa = rep.get("focus_areas", [])
-            if isinstance(fa, list) and fa:
-                card("Focus Areas", "<div>" + "<br>".join([f"• {x}" for x in fa]) + "</div>", tone="info")
+            st.stop()
 
+        st.success("Assessment started. You can now submit answers and journal entries.")
+
+# ---------------------------
+# Submit Assessment Answer
+# ---------------------------
 elif choice == "Submit Assessment Answer":
     st.header("Submit Assessment Answer")
 
     with st.form("answer_form"):
-        ans_patient_id = st.text_input("Patient ID", value="patient_001", key="ans_pid")
-        question = st.text_area("Question", value="How have you been feeling lately?", key="q", height=90)
-        answer = st.text_area("Answer", value="", key="a", height=120)
+        ans_patient_id = st.text_input("Patient ID", value="patient_001")
+        question = st.text_area("Question", value="How have you been feeling lately?", height=90)
+        answer = st.text_area("Answer", value="", height=120)
         ans_sub = st.form_submit_button("Submit Answer")
 
     if ans_sub:
@@ -517,65 +543,31 @@ elif choice == "Submit Assessment Answer":
 
         if "error" in resp:
             show_error(resp)
-        else:
-            rep = first_report(resp) or {}
-            card("💬 Saved", "<div>Your answer has been recorded. Here’s feedback based on what you shared:</div>", tone="success")
-            analysis = rep.get("analysis")
-            if isinstance(analysis, str) and analysis.strip():
-                long_text(analysis)
+            st.stop()
 
+        rep = first_report(resp) or {}
+        st.success("Your answer has been saved.")
+
+        analysis = rep.get("analysis", "")
+        if isinstance(analysis, str) and analysis.strip():
+            st.subheader("Supportive feedback")
+            st.write(analysis)
+
+# ---------------------------
+# Submit Journal Entry
+# ---------------------------
 elif choice == "Submit Journal Entry":
     st.header("Submit Journal Entry")
 
     with st.form("journal_form"):
-        j_patient_id = st.text_input("Patient ID", value="patient_001", key="j_pid")
-        journal_content = st.text_area("Journal content", value="Today was hard...", key="jc", height=140)
+        j_patient_id = st.text_input("Patient ID", value="patient_001")
+        journal_content = st.text_area("Journal content", value="Today was hard...", height=140)
+
         mood_score = st.slider("Mood score (0 = worst, 10 = best)", 0, 10, 5)
-
         emoji, label, color = mood_feedback(int(mood_score))
+        st.write(f"{emoji} {label}")
 
-        st.markdown(
-            f"""
-<div style="
-    background:#ffffff;
-    border:1px solid #e5e7eb;
-    border-left:6px solid {color};
-    border-radius:14px;
-    padding:12px;
-    margin-top:8px;
-    margin-bottom:10px;
-    font-size:16px;
-    font-weight:700;
-    color:#111827;
-">
-  {emoji} Mood check: <span style="color:{color}">{label}</span>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-
-        st.markdown(
-            f"""
-<div style="
-    height:12px;
-    width:100%;
-    background:#e5e7eb;
-    border-radius:999px;
-    overflow:hidden;
-    margin-bottom:14px;
-">
-  <div style="
-      height:100%;
-      width:{int(mood_score) * 10}%;
-      background:{color};
-      border-radius:999px;
-  "></div>
-</div>
-""",
-            unsafe_allow_html=True,
-        )
-
-        created_at = st.text_input("Created at (ISO)", value=datetime.now(timezone.utc).isoformat(), key="ja")
+        created_at = st.text_input("Created at (ISO)", value=datetime.now(timezone.utc).isoformat())
         j_sub = st.form_submit_button("Submit Journal Entry")
 
     if j_sub:
@@ -589,19 +581,25 @@ elif choice == "Submit Journal Entry":
 
         if "error" in resp:
             show_error(resp)
-        else:
-            rep = first_report(resp) or {}
-            card("Journal saved", "<div>Thanks for sharing. Here are some supportive suggestions:</div>", tone="success")
-            suggestions = rep.get("suggestions")
-            if isinstance(suggestions, str) and suggestions.strip():
-                long_text(suggestions)
+            st.stop()
 
+        rep = first_report(resp) or {}
+        st.success("Your journal entry has been saved.")
+
+        suggestions = rep.get("suggestions", "")
+        if isinstance(suggestions, str) and suggestions.strip():
+            st.subheader("Supportive suggestions")
+            st.write(suggestions)
+
+# ---------------------------
+# Generate Recommendations
+# ---------------------------
 elif choice == "Generate Recommendations":
     st.header("Generate Recommendations")
 
     with st.form("gen_form"):
-        g_patient_id = st.text_input("Patient ID", value="patient_001", key="g_pid")
-        g_created_at = st.text_input("Created at (ISO)", value=datetime.now(timezone.utc).isoformat(), key="g_time")
+        g_patient_id = st.text_input("Patient ID", value="patient_001")
+        g_created_at = st.text_input("Created at (ISO)", value=datetime.now(timezone.utc).isoformat())
         g_sub = st.form_submit_button("Generate")
 
     if g_sub:
@@ -610,18 +608,23 @@ elif choice == "Generate Recommendations":
 
         if "error" in resp:
             show_error(resp)
-        else:
-            rep = first_report(resp) or {}
-            card("Recommendations", "<div>Here are your personalized recommendations:</div>", tone="info")
-            rec = rep.get("recommendations")
-            if isinstance(rec, str) and rec.strip():
-                long_text(rec)
+            st.stop()
 
+        rep = first_report(resp) or {}
+        rec = rep.get("recommendations", "")
+
+        st.success("Recommendations generated.")
+        if isinstance(rec, str) and rec.strip():
+            st.write(rec)
+
+# ---------------------------
+# Session Summary
+# ---------------------------
 elif choice == "Session Summary":
     st.header("Session Summary")
 
     with st.form("summary_form"):
-        s_patient_id = st.text_input("Patient ID", value="patient_001", key="s_pid")
+        s_patient_id = st.text_input("Patient ID", value="patient_001")
         s_sub = st.form_submit_button("Get Summary")
 
     if s_sub:
@@ -638,65 +641,51 @@ elif choice == "Session Summary":
         recs = int(rep.get("recommendation_count", 0) or 0)
         focus = rep.get("focus_areas", [])
 
-        summary_text = f"""
-This session summary is for **{name}**.
-The assessment session is currently active.
-
-So far, the patient has shared **{answers} assessment response{'s' if answers != 1 else ''}**
-and written **{journals} journal entr{'ies' if journals != 1 else 'y'}**.
-
-Based on the information shared,
-**{recs} set{'s' if recs != 1 else ''} of personalized recommendations**
-have been generated to help support the patient’s mental and emotional well-being.
-"""
-        st.markdown(summary_text.strip())
+        st.write(f"This summary is for **{name}**.")
+        st.write(f"So far there are **{answers}** assessment answers and **{journals}** journal entries.")
+        st.write(f"**{recs}** recommendation sets have been generated.")
 
         if isinstance(focus, list) and focus:
-            focus_text = ", ".join(focus)
-            st.markdown(f"The main areas being worked on during this session include: **{focus_text}.**")
+            st.write("Focus areas: " + ", ".join([str(x) for x in focus]))
 
-        if answers == 0 and journals == 0:
-            st.markdown(
-                " *Tip:* You can begin by answering one assessment question or writing a short journal entry "
-                "to receive more personalized support."
-            )
-
+# ---------------------------
+# Patient Visit Stats
+# ---------------------------
 elif choice == "Patient Visit Stats":
     st.header("Patient Visit Stats")
 
     resp = call_walker("PatientVisitStatsWalker", {})
     if "error" in resp:
         show_error(resp)
-    else:
-        rep = first_report(resp) or {}
-        reg = int(rep.get("registered_count", 0) or 0)
-        visited = int(rep.get("visited_count", 0) or 0)
-        started = int(rep.get("started_count", 0) or 0)
-        assessed = int(rep.get("patients_assessed_count", 0) or 0)
+        st.stop()
 
-        card("Overview", "<div>Here is what’s happening in the platform right now.</div>", tone="info")
+    rep = first_report(resp) or {}
+    reg = int(rep.get("registered_count", 0) or 0)
+    visited = int(rep.get("visited_count", 0) or 0)
+    started = int(rep.get("started_count", 0) or 0)
+    assessed = int(rep.get("patients_assessed_count", 0) or 0)
 
-        c1, c2, c3, c4 = st.columns(4)
-        with c1:
-            st.metric("Registered", reg)
-        with c2:
-            st.metric("Visited", visited)
-        with c3:
-            st.metric("Started", started)
-        with c4:
-            st.metric("Assessed", assessed)
+    c1, c2, c3, c4 = st.columns(4)
+    with c1:
+        st.metric("Registered", reg)
+    with c2:
+        st.metric("Visited", visited)
+    with c3:
+        st.metric("Started", started)
+    with c4:
+        st.metric("Assessed", assessed)
 
-        genders = rep.get("gender_counts", {})
-        if isinstance(genders, dict) and genders:
-            card("Gender counts", "<div>" + "<br>".join([f"• {k}: {v}" for k, v in genders.items()]) + "</div>", tone="success")
+    genders = rep.get("gender_counts", {})
+    if isinstance(genders, dict) and genders:
+        st.subheader("Gender counts")
+        for k, v in genders.items():
+            st.write(f"{k}: {v}")
 
-else:
-    card("Welcome", "<div>Select an action from the left menu to begin.</div>", tone="info")
-
+# ============================================================
+# Footer
+# ============================================================
 st.markdown("---")
 st.markdown(
-    "<p style='font-size:12px;color:gray;text-align:center;'>"
-    "BetterHealthAi — Mental Health Assessment Platform 💙"
-    "</p>",
+    "<p style='font-size:12px;color:gray;text-align:center;'>BetterHealthAi — Simple check-ins. Supportive guidance. Small steps count 💙</p>",
     unsafe_allow_html=True,
 )
