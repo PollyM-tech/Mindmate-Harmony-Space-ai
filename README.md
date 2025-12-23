@@ -46,3 +46,6 @@ Contributing & license
 
  The link below has our power point presentation
  https://docs.google.com/presentation/d/159HZu-nRjIqpksMU8_T9jT5mB566mwi5n-8f1-zGNK8/edit?usp=sharing
+
+ this is our video presentation in the google drive 
+ https://drive.google.com/file/d/1RJD8yRHUsz_ALArUMgEghYkLS6PrNMek/view?usp=sharing
