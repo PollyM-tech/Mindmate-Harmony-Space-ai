@@ -96,20 +96,27 @@ sem generate_therapy_recommendations.patient_preferences = "The patient's prefer
 
 
 walker RegisterPatientWalker {
-    has assessment_context: AssessmentContext;
+    has assessment_context: dict;      # ✅ accept dict from HTTP
     has patients: list[dict];
 
     obj __specs__ { static has auth: bool = False; }
 
     can execute with `root entry {
-        # track newly registered vs already registered
+        # Build AssessmentContext node from dict payload
+        ac = AssessmentContext(
+            assessment_type = self.assessment_context.get("assessment_type", "initial"),
+            number_of_questions = self.assessment_context.get("number_of_questions", 10),
+            focus_areas = self.assessment_context.get("focus_areas", []),
+            clinical_guidelines = self.assessment_context.get("clinical_guidelines", ""),
+            therapist_notes = self.assessment_context.get("therapist_notes", "")
+        );
+
         new_count = 0;
         already_registered_ids = [];
 
         for patient_data in self.patients {
             pid = patient_data.get("patient_id", "");
 
-            # if session already exists, mark as already registered and skip creating a new session
             if pid in therapy_sessions {
                 already_registered_ids.append(pid);
                 continue;
@@ -121,11 +128,11 @@ walker RegisterPatientWalker {
                 email=patient_data.get("email", ""),
                 age=patient_data.get("age", 0),
                 medical_history=patient_data.get("medical_history", ""),
-                gender=patient_data.get("gender", "unknown")    # capture gender on registration
+                gender=patient_data.get("gender", "unknown")
             );
 
             session = TherapySession(
-                assessment_context=self.assessment_context,
+                assessment_context=ac,     # ✅ use constructed node
                 patient=patient,
                 is_active=True,
                 assessment_started=False
@@ -133,15 +140,14 @@ walker RegisterPatientWalker {
 
             therapy_sessions[patient.patient_id] = session;
 
-            # Update assessment stats for registration
             if "registered_list" not in assessment_stats {
                 assessment_stats["registered_list"] = [];
             }
+
             if patient.patient_id not in assessment_stats["registered_list"] {
                 assessment_stats["registered_list"].append(patient.patient_id);
                 assessment_stats["registered_count"] += 1;
 
-                # update gender_counts
                 g = patient.gender;
                 if g == "" { g = "unknown"; }
                 if g not in assessment_stats["gender_counts"] {
@@ -149,6 +155,7 @@ walker RegisterPatientWalker {
                 }
                 assessment_stats["gender_counts"][g] += 1;
             }
+
             new_count += 1;
         }
 
@@ -158,10 +165,11 @@ walker RegisterPatientWalker {
             "new_registered_count": new_count,
             "already_registered_count": len(already_registered_ids),
             "already_registered": already_registered_ids,
-            "assessment_type": self.assessment_context.assessment_type
+            "assessment_type": ac.assessment_type
         };
     }
 }
+
 
 walker StartAssessmentWalker {
     has patient_id: str;
@@ -179,8 +187,37 @@ walker StartAssessmentWalker {
         session = therapy_sessions[self.patient_id];
         session.is_active = True;
         session.assessment_started = True;
-        session.assessment_context.assessment_type = self.assessment_type;
-        session.assessment_context.focus_areas = self.focus_areas;
+
+        # ✅ FIX: Ensure assessment_context is always an AssessmentContext node
+        ac = session.assessment_context;
+
+        # If it's a dict (from HTTP payload earlier), rebuild the node
+        if ac is dict {
+            ac = AssessmentContext(
+                assessment_type = ac.get("assessment_type", "initial"),
+                number_of_questions = ac.get("number_of_questions", 10),
+                focus_areas = ac.get("focus_areas", []),
+                clinical_guidelines = ac.get("clinical_guidelines", ""),
+                therapist_notes = ac.get("therapist_notes", "")
+            );
+            session.assessment_context = ac;
+        }
+
+        # If it is missing/invalid for any reason, set a safe default
+        if ac is None {
+            ac = AssessmentContext(
+                assessment_type = "initial",
+                number_of_questions = 10,
+                focus_areas = [],
+                clinical_guidelines = "",
+                therapist_notes = ""
+            );
+            session.assessment_context = ac;
+        }
+
+        # ✅ Now safe to update
+        ac.assessment_type = self.assessment_type;
+        ac.focus_areas = self.focus_areas;
 
         # Update stats for started assessments
         assessment_stats["started_count"] += 1;
@@ -204,6 +241,7 @@ walker StartAssessmentWalker {
         };
     }
 }
+
 
 walker SubmitAssessmentAnswerWalker {
     has patient_id: str;

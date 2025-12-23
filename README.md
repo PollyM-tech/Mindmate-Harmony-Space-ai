@@ -32,7 +32,7 @@ Quick start
 3. Run the Jac module (example):
    - Jac Client expects a running Jac server. So you must start backend first:
    - python run.py
-   - streamlit run app.py 
+   - streamlit run streamlit.py 
 
 Notes & troubleshooting
 - Ensure walker signatures have non-default arguments before default ones (Jac/Python restriction).
@@ -44,4 +44,5 @@ Contributing & license
 - Do not add secrets to the repo.
 - LICENSE file  MIT
 
- 
+ The link below has our power point presentation
+ https://docs.google.com/presentation/d/159HZu-nRjIqpksMU8_T9jT5mB566mwi5n-8f1-zGNK8/edit?usp=sharing
