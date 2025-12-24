@@ -372,23 +372,12 @@ def show_error(resp: Dict[str, Any]):
 st.title("BetterHealthAi")
 st.caption("Mental Health Assessment Platform.")
 
-# ============================================================
-# ✅ Sidebar menu (FIXED: use st.sidebar.button inside expander)
-#     - choice is ALWAYS defined
-#     - no 'return' at top-level (use st.stop when needed)
-# ============================================================
-menu_options = [
-    "Register Patient",
-    "Start Assessment",
-    "Submit Assessment Answer",
-    "Submit Journal Entry",
-    "Generate Recommendations",
-    "Session Summary",
-    "Patient Visit Stats",
-]
-
+# ---------- Sidebar Navigation (collapsible that actually hides items) ----------
 if "active_action" not in st.session_state:
     st.session_state["active_action"] = "Home"
+
+if "menu_open" not in st.session_state:
+    st.session_state["menu_open"] = True
 
 st.sidebar.markdown(
     "<h3 style='margin:0;padding:0'>BetterHealthAi</h3>"
@@ -396,23 +385,41 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
-if st.sidebar.button("Home", key="btn_home", use_container_width=True):
+# Home (always visible)
+if st.sidebar.button("Home", key="nav_home", use_container_width=True):
     st.session_state["active_action"] = "Home"
+    st.session_state["menu_open"] = False
+    st.rerun()
 
-with st.sidebar.expander("Menu", expanded=True):
-    for opt in menu_options:
-        # IMPORTANT: st.sidebar.button (not st.button)
-        if st.sidebar.button(opt, key=f"btn_{opt}", use_container_width=True):
+# Toggle button (this is the REAL collapse control)
+toggle_label = "Menu ▼" if st.session_state["menu_open"] else "Menu ▶"
+if st.sidebar.button(toggle_label, key="nav_menu_toggle", use_container_width=True):
+    st.session_state["menu_open"] = not st.session_state["menu_open"]
+    st.rerun()
+
+# Only render menu items when open (this makes it truly collapse)
+if st.session_state["menu_open"]:
+    for opt in [
+        "Register Patient",
+        "Start Assessment",
+        "Submit Assessment Answer",
+        "Submit Journal Entry",
+        "Generate Recommendations",
+        "Session Summary",
+        "Patient Visit Stats",
+    ]:
+        if st.sidebar.button(opt, key=f"nav_{opt}", use_container_width=True):
             st.session_state["active_action"] = opt
+            st.session_state["menu_open"] = False
+            st.rerun()
 
-    if st.sidebar.button("Reset", key="btn_reset", use_container_width=True):
+    if st.sidebar.button("Reset", key="nav_reset", use_container_width=True):
         st.session_state["active_action"] = "Home"
+        st.session_state["menu_open"] = False
+        st.rerun()
 
 choice = st.session_state["active_action"]
 
-# ============================================================
-# ✅ Pages
-# ============================================================
 
 # ---------------------------
 # Home / Landing
