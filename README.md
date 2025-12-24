@@ -1,7 +1,7 @@
-BetterAI
+BetterHealthAI
 <img src="images/landing.png" width="600" />
 
-BetterAI is a Jac-based prototype for mental-health tooling. It models users, emotions, triggers, activities, journal and mood entries, and therapy-session workflows. The project uses an LLM wrapper (Model) to analyze journal entries, assess patient responses, and generate supportive suggestions.
+BetterHealthAI is a Jac-based prototype for mental-health tooling. It models users, emotions, triggers, activities, journal and mood entries, and therapy-session workflows. The project uses an LLM wrapper (Model) to analyze journal entries, assess patient responses, and generate supportive suggestions.
 
 Quick highlights
 - Node and edge models for users, emotions, triggers, suggestions, journaling, and therapy sessions.
@@ -49,4 +49,4 @@ Contributing & license
  https://docs.google.com/presentation/d/159HZu-nRjIqpksMU8_T9jT5mB566mwi5n-8f1-zGNK8/edit?usp=sharing
 
  this is our video presentation in the google drive 
- https://drive.google.com/file/d/1RJD8yRHUsz_ALArUMgEghYkLS6PrNMek/view?usp=sharing
+ https://drive.google.com/file/d/1N4zwYQk_-nxA1vPBBEmoRB6Xd9V87p6V/view?usp=drive_link

@@ -294,7 +294,7 @@ pre, code {
 )
 
 # ============================================================
-# ✅ Jac HTTP Client
+# Jac HTTP Client
 # ============================================================
 def safe_json(resp: requests.Response) -> Any:
     try:
@@ -332,7 +332,7 @@ def first_report(resp: Dict[str, Any]) -> Optional[Dict[str, Any]]:
 
 
 # ============================================================
-# ✅ Mood emoji mapping
+#  Mood emoji mapping
 # ============================================================
 def mood_feedback(score: int):
     if score >= 8:
@@ -345,7 +345,7 @@ def mood_feedback(score: int):
 
 
 # ============================================================
-# ✅ Small UI helpers
+# Small UI helpers
 # ============================================================
 def card(title: str, body: str, tone: str = "info"):
     if tone == "success":
@@ -367,12 +367,10 @@ def show_error(resp: Dict[str, Any]):
 
 
 # ============================================================
-# ✅ App header
+# App header
 # ============================================================
 st.title("BetterHealthAi")
 st.caption("Mental Health Assessment Platform.")
-
-# ---------- Sidebar Navigation (collapsible that actually hides items) ----------
 if "active_action" not in st.session_state:
     st.session_state["active_action"] = "Home"
 
@@ -385,19 +383,18 @@ st.sidebar.markdown(
     unsafe_allow_html=True,
 )
 
-# Home (always visible)
+# Home 
 if st.sidebar.button("Home", key="nav_home", use_container_width=True):
     st.session_state["active_action"] = "Home"
     st.session_state["menu_open"] = False
     st.rerun()
 
-# Toggle button (this is the REAL collapse control)
+# Toggle button 
 toggle_label = "Menu ▼" if st.session_state["menu_open"] else "Menu ▶"
 if st.sidebar.button(toggle_label, key="nav_menu_toggle", use_container_width=True):
     st.session_state["menu_open"] = not st.session_state["menu_open"]
     st.rerun()
-
-# Only render menu items when open (this makes it truly collapse)
+# Menu options 
 if st.session_state["menu_open"]:
     for opt in [
         "Register Patient",
@@ -420,8 +417,6 @@ if st.session_state["menu_open"]:
 
 choice = st.session_state["active_action"]
 
-
-# ---------------------------
 # Home / Landing
 # ---------------------------
 if choice == "Home":
