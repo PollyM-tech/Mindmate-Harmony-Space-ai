@@ -96,7 +96,7 @@ sem generate_therapy_recommendations.patient_preferences = "The patient's prefer
 
 
 walker RegisterPatientWalker {
-    has assessment_context: dict;      # ✅ accept dict from HTTP
+    has assessment_context: dict;     
     has patients: list[dict];
 
     obj __specs__ { static has auth: bool = False; }
@@ -132,7 +132,7 @@ walker RegisterPatientWalker {
             );
 
             session = TherapySession(
-                assessment_context=ac,     # ✅ use constructed node
+                assessment_context=ac,     
                 patient=patient,
                 is_active=True,
                 assessment_started=False
@@ -188,10 +188,10 @@ walker StartAssessmentWalker {
         session.is_active = True;
         session.assessment_started = True;
 
-        # ✅ FIX: Ensure assessment_context is always an AssessmentContext node
+        
         ac = session.assessment_context;
 
-        # If it's a dict (from HTTP payload earlier), rebuild the node
+
         if ac is dict {
             ac = AssessmentContext(
                 assessment_type = ac.get("assessment_type", "initial"),
@@ -203,7 +203,6 @@ walker StartAssessmentWalker {
             session.assessment_context = ac;
         }
 
-        # If it is missing/invalid for any reason, set a safe default
         if ac is None {
             ac = AssessmentContext(
                 assessment_type = "initial",
@@ -215,7 +214,7 @@ walker StartAssessmentWalker {
             session.assessment_context = ac;
         }
 
-        # ✅ Now safe to update
+       
         ac.assessment_type = self.assessment_type;
         ac.focus_areas = self.focus_areas;
 
