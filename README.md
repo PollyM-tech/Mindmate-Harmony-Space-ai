@@ -1,7 +1,7 @@
 BetterHealthAI
 <img src="images/landing.png" width="600" />
 
-BetterHealthAI is a Jac-based prototype for mental-health tooling. It models users, emotions, triggers, activities, journal and mood entries, and therapy-session workflows. The project uses an LLM wrapper (Model) to analyze journal entries, assess patient responses, and generate supportive suggestions.
+- BetterHealthAI is a Jac-based prototype for mental-health tooling. It models users, emotions, triggers, activities, journal and mood entries, and therapy-session workflows. - The project uses an LLM wrapper (Model) to analyze journal entries, assess patient responses, and generate supportive suggestions.
 
 Quick highlights
 - Node and edge models for users, emotions, triggers, suggestions, journaling, and therapy sessions.
@@ -12,6 +12,24 @@ Requirements
 - Jac runtime for executing .jac files.
 - Byllm/Model wrapper or equivalent LLM SDK installed and available to the Jac runtime.
 - Python packages used in the repo (if running Python helpers): python-dotenv, requests, etc.
+
+Project structure
+Mindmate-Harmony-Space-ai/
+├── BE/
+│   ├── mindharmony.jac              # Core Jac graph + walkers
+│   ├── run.py                       
+│
+├── FE/
+│   └── streamlit.py                 
+│
+├── images/
+│   └── landing.png
+│
+├── requirements.txt
+├── README.md
+├── .env                            
+└── .gitignore
+
 
 Environment
 - Create a `.env` file or export environment variables. The code expects:
